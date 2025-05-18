@@ -2,6 +2,7 @@ package dev.keith.bots;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
@@ -22,6 +23,7 @@ public class DiscordBot {
                     .addEventListeners(new JDACommandUtil())
                     .setActivity(Activity.of(Config.type == null ? Activity.ActivityType.PLAYING : Config.type,
                             Config.activity.isEmpty() ? "Integrated Discord Bot but with placeholder!" : Config.activity))
+                    .setStatus(Config.status)
                     .build()
                     .awaitReady();
         } catch (InterruptedException e) {

@@ -1,5 +1,6 @@
 package dev.keith.bots;
 
+import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +15,7 @@ public final class Config {
         debug = false;
         activity = "";
         type = null;
+        status = OnlineStatus.ONLINE;
         try (BufferedReader reader = new BufferedReader(new FileReader("bot.config"))) {
             reader.lines().forEach(
                     s -> {
@@ -34,6 +36,9 @@ public final class Config {
                                     .replace(" ", "")
                                     .toUpperCase());
                         }
+                        if (s.startsWith("status=")) {
+                            status = parseStatus(s.replace("status=", "").toLowerCase());
+                        }
                     }
             );
         } catch (FileNotFoundException e) {
@@ -42,8 +47,19 @@ public final class Config {
             throw new RuntimeException(e);
         }
     }
+
+    private static OnlineStatus parseStatus(String s) {
+        return switch (s) {
+            case "invisible" -> OnlineStatus.INVISIBLE;
+            case "dnd", "do_not_disturb" -> OnlineStatus.DO_NOT_DISTURB;
+            case "idle" -> OnlineStatus.IDLE;
+            default -> OnlineStatus.ONLINE;
+        };
+    }
+
     public static String token;
     public static boolean debug;
     public static String activity;
     public static Activity.ActivityType type;
+    public static OnlineStatus status;
 }
