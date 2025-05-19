@@ -10,6 +10,8 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static dev.keith.bots.util.PlaceHolderConverter.convert;
+
 public class EmbedConstructor {
     private final String title;
     private final List<String> descriptions;
@@ -26,23 +28,11 @@ public class EmbedConstructor {
     public MessageEmbed construct(GuildMemberJoinEvent event) {
         EmbedBuilder builder = new EmbedBuilder();
 
-        builder.setTitle(title
-                // Placeholders
-                .replace("%ping_member%", event.getMember().getAsMention())
-                .replace("%member%", event.getMember().getEffectiveName())
-                .replace("%server_name%", event.getGuild().getName())
-                .replace("%server_member_number%", String.valueOf(event.getGuild().getMemberCount()))
-        );
+        builder.setTitle(convert(event, title));
         descriptions.stream()
-                .map(s -> s
-                        // Placeholders
-                        .replace("%ping_member%", event.getMember().getAsMention())
-                        .replace("%member%", event.getMember().getEffectiveName())
-                        .replace("%server_name%", event.getGuild().getName())
-                        .replace("%server_member_number%", String.valueOf(event.getGuild().getMemberCount())))
-                .forEach(s -> {
-                    builder.appendDescription(s + "\n");
-                });
+                .map(s -> convert(event, s))
+                .map(s -> s + "\n")
+                .forEach(builder::appendDescription);
         if (attachment != null) {
             builder.setImage(attachment);
         }
@@ -53,18 +43,9 @@ public class EmbedConstructor {
     public MessageEmbed construct(GuildMemberRemoveEvent event) {
         EmbedBuilder builder = new EmbedBuilder();
 
-        builder.setTitle(title
-                // Placeholders
-                .replace("%user%", event.getUser().getEffectiveName())
-                .replace("%server_name%", event.getGuild().getName())
-                .replace("%server_member_number%", String.valueOf(event.getGuild().getMemberCount()))
-        );
+        builder.setTitle(convert(event, title));
         descriptions.stream()
-                .map(s -> s
-                        // Placeholders
-                        .replace("%user%", event.getUser().getEffectiveName())
-                        .replace("%server_name%", event.getGuild().getName())
-                        .replace("%server_member_number%", String.valueOf(event.getGuild().getMemberCount())))
+                .map(s -> convert(event, s))
                 .map(s -> s + "\n")
                 .forEach(builder::appendDescription);
         if (attachment != null) {
