@@ -7,6 +7,7 @@ public class Main {
     static {
         try {
             Class.forName("dev.keith.bots.Config");
+            Class.forName("dev.keith.database.helpers.SQLHelper");
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }

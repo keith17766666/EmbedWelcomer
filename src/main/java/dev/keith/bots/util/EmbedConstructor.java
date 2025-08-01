@@ -1,18 +1,22 @@
 package dev.keith.bots.util;
 
+import lombok.Getter;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
+import net.dv8tion.jda.api.events.guild.GenericGuildEvent;
 
 import java.awt.*;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 
-import static dev.keith.bots.util.PlaceHolderConverter.convert;
-
-public class EmbedConstructor {
+@Getter
+public class EmbedConstructor implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 42L;
     private final String title;
     private final List<String> descriptions;
     private final String attachment;
@@ -24,28 +28,13 @@ public class EmbedConstructor {
         this.attachment = attachment;
         this.color = color;
     }
-
-    public MessageEmbed construct(GuildMemberJoinEvent event) {
+    public <E extends GenericGuildEvent> MessageEmbed construct(E event,
+                                                                BiFunction<E, String, String> factory) {
         EmbedBuilder builder = new EmbedBuilder();
 
-        builder.setTitle(convert(event, title));
+        builder.setTitle(factory.apply(event, title));
         descriptions.stream()
-                .map(s -> convert(event, s))
-                .map(s -> s + "\n")
-                .forEach(builder::appendDescription);
-        if (attachment != null) {
-            builder.setImage(attachment);
-        }
-        builder.setColor(color);
-        return builder.build();
-    }
-
-    public MessageEmbed construct(GuildMemberRemoveEvent event) {
-        EmbedBuilder builder = new EmbedBuilder();
-
-        builder.setTitle(convert(event, title));
-        descriptions.stream()
-                .map(s -> convert(event, s))
+                .map(s -> factory.apply(event, s))
                 .map(s -> s + "\n")
                 .forEach(builder::appendDescription);
         if (attachment != null) {
@@ -57,7 +46,12 @@ public class EmbedConstructor {
 
     @Override
     public String toString() {
-        return "EmbedConstructor[title:" + title + ",descriptions:" + descriptions + "]";
+        return "EmbedConstructor{" +
+                "title='" + title + '\'' +
+                ", descriptions=" + descriptions +
+                ", attachment='" + attachment + '\'' +
+                ", color=" + color +
+                '}';
     }
 
     public static class Builder {

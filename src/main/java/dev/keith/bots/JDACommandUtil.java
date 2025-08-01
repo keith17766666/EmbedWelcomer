@@ -1,12 +1,20 @@
 package dev.keith.bots;
 
 import dev.keith.bots.util.EmbedConstructor;
+import dev.keith.bots.util.PlaceHolderConverter;
+import dev.keith.database.entity.LeaveEmbedMessageEntity;
+import dev.keith.database.entity.LeaveMessageEntity;
+import dev.keith.database.entity.WelcomeEmbedMessageEntity;
+import dev.keith.database.entity.WelcomeMessageEntity;
+import dev.keith.database.helpers.LeaveEmbedMessageSQLHelper;
+import dev.keith.database.helpers.LeaveMessageSQLHelper;
+import dev.keith.database.helpers.WelcomeEmbedMessageSQLHelper;
+import dev.keith.database.helpers.WelcomeMessageSQLHelper;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import net.dv8tion.jda.api.events.guild.GenericGuildEvent;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
@@ -27,12 +35,15 @@ import static dev.keith.bots.util.LoggerUtil.logDebug;
 import static dev.keith.bots.util.PlaceHolderConverter.convert;
 
 public class JDACommandUtil extends ListenerAdapter {
-    private static final Map<Long, Long> welcome_channel_id = Collections.synchronizedMap(new HashMap<>());
-    private static final Map<Long, EmbedConstructor> welcome_embed = Collections.synchronizedMap(new HashMap<>());
-    private static final Map<Long, String> welcome_message = Collections.synchronizedMap(new HashMap<>());
-    private static final Map<Long, Long> leave_channel_id = Collections.synchronizedMap(new HashMap<>());
-    private static final Map<Long, EmbedConstructor> leave_embed = Collections.synchronizedMap(new HashMap<>());
-    private static final Map<Long, String> leave_message = Collections.synchronizedMap(new HashMap<>());
+    private static final WelcomeEmbedMessageSQLHelper welcome_embed =
+            new WelcomeEmbedMessageSQLHelper();
+    private static final WelcomeMessageSQLHelper welcome_message =
+            new WelcomeMessageSQLHelper();
+    private static final LeaveEmbedMessageSQLHelper leave_embed =
+            new LeaveEmbedMessageSQLHelper();
+    private static final LeaveMessageSQLHelper leave_message =
+            new LeaveMessageSQLHelper();
+
     private static final Logger LOGGER = LoggerFactory.getLogger(JDACommandUtil.class);
     private static final DefaultMemberPermissions perm = DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR, Permission.MANAGE_CHANNEL);
 
@@ -52,12 +63,11 @@ public class JDACommandUtil extends ListenerAdapter {
             start = System.nanoTime();
         }
         if (!event.getUser().isBot()) {
+            long serverId = Objects.requireNonNull(event.getGuild()).getIdLong();
             switch (event.getName()) {
                 case WELCOME_EMBED_COMMAND: {
-                    putIfPresent(welcome_channel_id, Objects.requireNonNull(event.getGuild()).getIdLong(),
-                            Objects.requireNonNull(event.getOption("welcome_channel"))
-                                    .getAsChannel().getIdLong());
-                    welcome_message.remove(event.getGuild().getIdLong());
+                    long channelId = Objects.requireNonNull(event.getOption("welcome_channel"))
+                            .getAsChannel().getIdLong();
                     EmbedConstructor.Builder builder = new EmbedConstructor.Builder()
                             .color(getColor(event.getOption("color").getAsString()))
                             .title(event.getOption("title").getAsString());
@@ -69,19 +79,19 @@ public class JDACommandUtil extends ListenerAdapter {
                     if (event.getOption("image") != null) {
                         builder.image(event.getOption("image").getAsAttachment());
                     }
-                    if (!builder.isEmpty()) {
-                        putIfPresent(welcome_embed, event.getGuild().getIdLong(), builder.build());
-                    }
+                    WelcomeEmbedMessageEntity entity = WelcomeEmbedMessageEntity.fromEmbedConstructor
+                            (serverId, channelId, builder.build());
+                    welcome_embed.storeIfAbsent(serverId, entity);
                     event.getHook().sendMessage("Done setting up the welcome message!").queue();
                     break;
                 }
                 case WELCOME_COMMAND: {
-                    putIfPresent(welcome_channel_id, Objects.requireNonNull(event.getGuild()).getIdLong(),
-                            Objects.requireNonNull(event.getOption("welcome_channel"))
-                                    .getAsChannel().getIdLong());
-                    welcome_embed.remove(event.getGuild().getIdLong());
-                    putIfPresent(welcome_message, event.getGuild().getIdLong(),
-                            event.getOption("message").getAsString());
+                    long channelId = Objects.requireNonNull(event.getOption("welcome_channel"))
+                            .getAsChannel().getIdLong();
+                    WelcomeMessageEntity entity =
+                            new WelcomeMessageEntity(serverId, channelId,
+                                    Objects.requireNonNull(event.getOption("message")).getAsString());
+                    welcome_message.storeIfAbsent(serverId, entity);
                     event.getHook().sendMessage("Done setting up the welcome message!").queue();
                     break;
                 }
@@ -100,9 +110,8 @@ public class JDACommandUtil extends ListenerAdapter {
                     break;
                 }
                 case LEAVE_EMBED_COMMAND: {
-                    putIfPresent(leave_channel_id, Objects.requireNonNull(event.getGuild()).getIdLong(),
-                            Objects.requireNonNull(event.getOption("left_channel"))
-                                    .getAsChannel().getIdLong());
+                    long channelId = Objects.requireNonNull(event.getOption("leave_channel"))
+                            .getAsChannel().getIdLong();
                     EmbedConstructor.Builder builder = new EmbedConstructor.Builder()
                             .color(getColor(event.getOption("color").getAsString()))
                             .title(event.getOption("title").getAsString());
@@ -114,19 +123,19 @@ public class JDACommandUtil extends ListenerAdapter {
                     if (event.getOption("image") != null) {
                         builder.image(event.getOption("image").getAsAttachment());
                     }
-                    if (!builder.isEmpty()) {
-                        putIfPresent(leave_embed, event.getGuild().getIdLong(), builder.build());
-                    }
+                    LeaveEmbedMessageEntity entity =
+                            LeaveEmbedMessageEntity.fromEmbedConstructor(serverId, channelId, builder.build());
+                    leave_embed.storeIfAbsent(serverId, entity);
                     event.getHook().sendMessage("Done setting up the leaving message!").queue();
                     break;
                 }
                 case LEAVE_COMMAND: {
-                    putIfPresent(leave_channel_id, Objects.requireNonNull(event.getGuild()).getIdLong(),
-                            Objects.requireNonNull(event.getOption("welcome_channel"))
-                                    .getAsChannel().getIdLong());
-                    leave_embed.remove(event.getGuild().getIdLong());
-                    putIfPresent(welcome_message, event.getGuild().getIdLong(),
-                            event.getOption("message").getAsString());
+                    long channelId = Objects.requireNonNull(event.getOption("leave_channel"))
+                            .getAsChannel().getIdLong();
+                    LeaveMessageEntity entity =
+                            new LeaveMessageEntity(serverId, channelId,
+                                    Objects.requireNonNull(event.getOption("message")).getAsString());
+                    leave_message.storeIfAbsent(serverId, entity);
                     event.getHook().sendMessage("Done setting up the leaving message!").queue();
                     break;
                 }
@@ -156,46 +165,61 @@ public class JDACommandUtil extends ListenerAdapter {
 
     public static void doRegister(JDA jda) {
         jda.getGuilds().forEach(JDACommandUtil::doRegister);
-        jda.updateCommands().queue();
     }
     @Override
     public void onGuildMemberJoin(@NotNull GuildMemberJoinEvent event) {
-        sendWelcomeOrLeaveMessage(welcome_channel_id, welcome_message, welcome_embed, event);
+        sendWelcomeMessage(event);
     }
 
     @Override
     public void onGuildMemberRemove(@NotNull GuildMemberRemoveEvent event) {
-        sendWelcomeOrLeaveMessage(leave_channel_id, leave_message, leave_embed, event);
+        sendLeaveMessage(event);
     }
-    private void sendWelcomeOrLeaveMessage(Map<Long, Long> channel_id, Map<Long, String> message, Map<Long, EmbedConstructor> embed, GenericGuildEvent event) {
-        if (embed.containsKey(event.getGuild().getIdLong())) {
-            sentEmbedMessage(channel_id, embed, event);
-        } else if (message.containsKey(event.getGuild().getIdLong())) {
-            sentNormalMessage(channel_id, message, event);
+    private void sendWelcomeMessage(GuildMemberJoinEvent event) {
+        long serverId = Objects.requireNonNull(event.getGuild()).getIdLong();
+        if (welcome_message.query(serverId) != null) {
+            sentNormalWelcomeMessage(event, welcome_message.query(serverId));
+        }
+        if (welcome_embed.query(serverId) != null) {
+            sentWelcomeEmbedMessage(event, welcome_embed.query(serverId));
         }
     }
-    private void sentNormalMessage(Map<Long, Long> channel_id, Map<Long, String> message, GenericGuildEvent event) {
-        String toSend = "";
-        if (event instanceof GuildMemberJoinEvent event1) {
-            toSend = convert(event1, message.get(event.getGuild().getIdLong()));
-        } else if (event instanceof GuildMemberRemoveEvent event1) {
-            toSend = convert(event1, message.get(event.getGuild().getIdLong()));
+    private void sendLeaveMessage(GuildMemberRemoveEvent event) {
+        long serverId = Objects.requireNonNull(event.getGuild()).getIdLong();
+        if (leave_message.query(serverId) != null) {
+            sentNormalLeaveMessage(event, leave_message.query(serverId));
         }
-
-        TextChannel channel = event.getGuild().getTextChannelById(channel_id.get(event.getGuild().getIdLong()));
+        if (leave_embed.query(serverId) != null) {
+            sentLeaveEmbedMessage(event, leave_embed.query(serverId));
+        }
+    }
+    private void sentNormalWelcomeMessage(GuildMemberJoinEvent event, WelcomeMessageEntity entity) {
+        String toSend = convert(event, entity.getMessage());
+        TextChannel channel = event.getGuild().getTextChannelById(entity.getChannel_id());
         if (channel != null) {
             channel.sendMessage(toSend).queue();
         }
     }
-    private void sentEmbedMessage(Map<Long, Long> channel_id, Map<Long, EmbedConstructor> embed, GenericGuildEvent event) {
-        MessageEmbed toSend = null;
-        if (event instanceof GuildMemberJoinEvent event1) {
-            toSend = embed.get(event.getGuild().getIdLong()).construct(event1);
-        } else if (event instanceof GuildMemberRemoveEvent event1) {
-            toSend = embed.get(event.getGuild().getIdLong()).construct(event1);
+    private void sentNormalLeaveMessage(GuildMemberRemoveEvent event, LeaveMessageEntity entity) {
+        String toSend = convert(event, entity.getMessage());
+        TextChannel channel = event.getGuild().getTextChannelById(entity.getChannel_id());
+        if (channel != null) {
+            channel.sendMessage(toSend).queue();
         }
-        
-        TextChannel channel = event.getGuild().getTextChannelById(channel_id.get(event.getGuild().getIdLong()));
+    }
+    private void sentWelcomeEmbedMessage(GuildMemberJoinEvent event, WelcomeEmbedMessageEntity entity) {
+        EmbedConstructor embed = entity.toEmbedConstructor();
+        MessageEmbed toSend = embed.construct(event, PlaceHolderConverter::convert);
+        TextChannel channel = event.getGuild().getTextChannelById(entity.getChannel_id());
+        if (channel != null) {
+            assert toSend != null;
+            channel.sendMessageEmbeds(toSend).queue();
+        }
+    }
+    private void sentLeaveEmbedMessage(GuildMemberRemoveEvent event, LeaveEmbedMessageEntity entity) {
+        EmbedConstructor embed = entity.toEmbedConstructor();
+        MessageEmbed toSend = embed.construct(event, PlaceHolderConverter::convert);
+        TextChannel channel = event.getGuild().getTextChannelById(entity.getChannel_id());
         if (channel != null) {
             assert toSend != null;
             channel.sendMessageEmbeds(toSend).queue();
@@ -209,7 +233,7 @@ public class JDACommandUtil extends ListenerAdapter {
                         .addOption(OptionType.CHANNEL, "welcome_channel", "The Welcome Channel", true)
                         .addOption(OptionType.STRING, "title", "The Title of the welcome Message", true)
                         .addOptions(color(new OptionData(OptionType.STRING, "color", "The color of the embed", true)))
-                        .addOption(OptionType.STRING, "descriptions", "The descriptions of the welcome Message,If you want multiple lines, split it with \";\", Optional")
+                        .addOption(OptionType.STRING, "descriptions", "The descriptions of the welcome Message,If you want multiple lines, split it with \";\"", true)
                         .addOption(OptionType.ATTACHMENT, "image", "The image you want for the embed, Optional")
                         .setDefaultPermissions(perm))
                 .addCommands(Commands.slash(WELCOME_COMMAND, "Setup Welcome Messages and channel.")
@@ -241,13 +265,6 @@ public class JDACommandUtil extends ListenerAdapter {
     @Override
     public void onGuildJoin(GuildJoinEvent event) {
         doRegister(event.getGuild());
-    }
-    private static  <K, V> void putIfPresent(Map <K, V> map, K key, V value) {
-        if (map.containsKey(key)) {
-            map.replace(key, value);
-        } else {
-            map.put(key, value);
-        }
     }
     private static OptionData color(OptionData data) {
         return data.addChoice("White", "white")
