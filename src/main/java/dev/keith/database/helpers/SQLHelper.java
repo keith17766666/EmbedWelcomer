@@ -25,7 +25,8 @@ public abstract class SQLHelper<E> {
         // A SessionFactory is set up once for an application!
         final StandardServiceRegistry registry =
                 new StandardServiceRegistryBuilder()
-                        .loadProperties(new File("./hibernate.properties"))
+                        .loadProperties(new File(System.getProperty("user.dir") +
+                                "/hibernate.properties"))
                         .build();
         try {
             return new MetadataSources(registry)
