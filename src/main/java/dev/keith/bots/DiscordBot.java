@@ -16,6 +16,7 @@ public class DiscordBot {
     public static JDA JDA;
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscordBot.class.getSimpleName());
     public static void startBot(String token) {
+        long nano = System.nanoTime();
         LOGGER.info("Starting The Bot...");
         try {
             JDA = JDABuilder.createLight(token, EnumSet.of(GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MEMBERS))
@@ -31,5 +32,7 @@ public class DiscordBot {
         LOGGER.info("Invite Link: {}", JDA.getInviteUrl(Permission.ADMINISTRATOR).replace("scope=bot", "scope=bot+applications.commands"));
         JDACommandUtil.doRegister(JDA);
         logDebug(LOGGER, "Done all settings for {}!", JDA.getSelfUser().getName());
+        LOGGER.info("Successfully finished startup!");
+        logDebug(LOGGER, "Bot started in {}", System.nanoTime() - nano);
     }
 }
