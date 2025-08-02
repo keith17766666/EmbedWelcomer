@@ -32,7 +32,7 @@ public class DiscordBot {
         LOGGER.info("Invite Link: {}", JDA.getInviteUrl(Permission.ADMINISTRATOR).replace("scope=bot", "scope=bot+applications.commands"));
         JDACommandUtil.doRegister(JDA);
         logDebug(LOGGER, "Done all settings for {}!", JDA.getSelfUser().getName());
-        LOGGER.info("Successfully finished startup!");
+        System.out.println("Successfully finished startup!");
         logDebug(LOGGER, "Bot started in {}", System.nanoTime() - nano);
     }
 }
